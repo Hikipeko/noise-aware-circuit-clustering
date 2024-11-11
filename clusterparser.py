@@ -2,7 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import hdbscan
 from typing import List
+import pickle
 import os
+from lef_parser import LefParser
+from def_parser import DefParser
 
 STD_CELL = 0
 MACRO = 1
@@ -22,9 +25,18 @@ class ClusterParser(object):
             net_file (str, optional): .nets file. Defaults to None. Not necessary for clustering. Only used for Rent's rule and small world analysis.
             macro_criteria (str, optional): if set, cells having height/width >= macro_criteria will be macros
         """
-        self.__load_nodes(node_file, macro_criteria)
-        if net_file:
+        if node_file.endswith('.nodes'):
+            self.__load_nodes(node_file, macro_criteria)
+        elif node_file.endswith('.lef'):
+            lef_parser = LefParser(node_file)
+            lef_parser.parse()
+        if net_file and net_file.endswith('.nets'):
             self.__load_nets(net_file)
+        elif net_file and net_file.endswith('.def'):
+            def_parser = DefParser(net_file)
+            def_parser.parse()
+        if def_parser and lef_parser:
+            self.__load_nodes_and_nets(lef_parser, def_parser)
 
     def __comment_line(self, line):
         if (
@@ -120,6 +132,26 @@ class ClusterParser(object):
             self.net_names.append(current_net_name)
             self.net_name2id_map[current_net_name] = len(self.net_names) - 1
             self.net_nodes.append(current_net_nodes)
+            
+    def __load_nodes_and_nets(self, lef_parser, def_parser):
+        """
+        Load nodes and nets from LEF/DEF parsers
+        """
+        # nodes
+        self.node_names = []
+        self.node_size_x = []
+        self.node_size_y = []
+        self.node_type = []
+        self.node_name2id_map = {}
+        # nets
+        current_net_name = None
+        current_net_nodes = []
+        self.net_names = []
+        self.net_name2id_map = {}
+        self.net_nodes = []
+        
+        print(def_parser.components.num_comps)
+        
 
     def load_terminals(self, filename: str, is_terminal=None):
         """Load the position of terminals. (deprecated)
